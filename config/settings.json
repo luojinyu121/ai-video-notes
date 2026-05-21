@@ -1,0 +1,40 @@
+{
+  "bilibili_cookie": "YOUR_BILIBILI_COOKIE_HERE",
+  "output_dir": "./output",
+  "note_output_dir": "./note_results",
+  "default_style": "detailed",
+  "default_format": "toc+link+summary",
+  "note_styles": {
+    "minimal": "1. **精简信息**: 仅记录最重要的内容，简洁明了。",
+    "detailed": "2. **详细记录**: 包含完整的内容和每个部分的详细讨论。需要尽可能多的记录视频内容，最好详细的笔记",
+    "academic": "3. **学术风格**: 适合学术报告，正式且结构化。",
+    "tutorial": "9.**教程笔记**:尽可能详细地记录教程,特别是关键点和一些重要的结论步骤",
+    "xiaohongshu": "4. **小红书风格**: 使用爆款关键词、二极管标题法等",
+    "life_journal": "5. **生活向**: 记录个人生活感悟，情感化表达。",
+    "task_oriented": "6. **任务导向**: 强调任务、目标，适合工作和待办事项。",
+    "business": "7. **商业风格**: 适合商业报告、会议纪要，正式且精准。",
+    "meeting_minutes": "8. **会议纪要**: 适合商业报告、会议纪要，正式且精准。"
+  },
+  "output_formats": {
+    "toc+link+summary": {
+      "name": "完整格式",
+      "description": "目录 + 可点击时间戳 + AI总结",
+      "components": ["toc", "link", "summary"]
+    },
+    "toc": {
+      "name": "目录格式",
+      "description": "纯目录结构",
+      "components": ["toc"]
+    },
+    "link": {
+      "name": "时间戳格式",
+      "description": "可点击时间戳为主",
+      "components": ["link"]
+    },
+    "summary": {
+      "name": "总结格式",
+      "description": "AI智能总结为主",
+      "components": ["summary"]
+    }
+  }
+}

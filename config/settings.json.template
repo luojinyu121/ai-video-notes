@@ -1,0 +1,98 @@
+{
+  "bilibili_cookie": "YOUR_BILIBILI_COOKIE_HERE",
+  "note_styles": {
+    "detailed": {
+      "description": "综合全面，覆盖所有内容",
+      "requirements": [
+        "完整记录视频内容",
+        "不遗漏任何重要信息",
+        "详细描述每个步骤"
+      ]
+    },
+    "tutorial": {
+      "description": "教程风格，适合初学者",
+      "requirements": [
+        "分步骤清晰",
+        "关键点突出",
+        "有结论和总结",
+        "适合学习参考"
+      ]
+    },
+    "academic": {
+      "description": "学术报告风格",
+      "requirements": [
+        "结构规范",
+        "引用明确",
+        "逻辑严谨",
+        "术语准确"
+      ]
+    },
+    "minimal": {
+      "description": "简洁版，快速参考",
+      "requirements": [
+        "只保留最重要内容",
+        "简洁明了",
+        "快速浏览"
+      ]
+    },
+    "xiaohongshu": {
+      "description": "小红书爆款风格",
+      "requirements": [
+        "标题吸引眼球",
+        "使用emoji",
+        "分段清晰",
+        "重点突出",
+        "容易传播"
+      ]
+    },
+    "life_journal": {
+      "description": "生活感悟风格",
+      "requirements": [
+        "个人思考",
+        "生活化表达",
+        "有感悟有总结"
+      ]
+    },
+    "business": {
+      "description": "商业报告风格",
+      "requirements": [
+        "正式严谨",
+        "数据支持",
+        "结构清晰",
+        "重点突出"
+      ]
+    },
+    "meeting_minutes": {
+      "description": "会议纪要风格",
+      "requirements": [
+        "清晰记录",
+        "要点明确",
+        "结构化组织",
+        "方便回顾"
+      ]
+    }
+  },
+  "output_format": {
+    "toc+link+summary": {
+      "description": "完整格式（推荐）",
+      "includes": ["目录", "时间戳", "AI总结"]
+    },
+    "toc": {
+      "description": "仅目录",
+      "includes": ["目录"]
+    },
+    "link": {
+      "description": "仅时间戳",
+      "includes": ["时间戳"]
+    },
+    "summary": {
+      "description": "仅总结",
+      "includes": ["AI总结"]
+    }
+  },
+  "html_template": {
+    "theme": "dark",
+    "primary_color": "#667eea",
+    "secondary_color": "#764ba2"
+  }
+}
