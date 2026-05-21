@@ -1,6 +1,6 @@
-﻿# AI Video Notes (Bilibili Video Note Generator)
+﻿# AI Video Notes
 
-这是一个专为 AI 编程核心环境设计的自动化 Agent Skill 工作流组合（以 Bilibili B站平台为基础）。它能够提取指定视频的完整字幕，然后通过自定义 AI 对内容进行分析与提炼，生成结构化的 Markdown 笔记及可以直接预览的 HTML 页面。
+这是一个专为 AI 编程核心环境设计的自动化 Agent Skill 工作流组合。它能够提取指定视频的完整字幕，然后通过自定义 AI 对内容进行分析与提炼，生成结构化的 Markdown 笔记及可以直接预览的 HTML 页面。
 
 ## 🌟 核心功能
 * **全集字幕抓取**：基于 Python 自动化脚本，抓取输入视频的完全脱敏字幕。
@@ -22,7 +22,8 @@ ote_results/ 呈现 Markdown（供存档或发博）和 HTML 内容。
 
 ### 前置环境需求
 - **Python 3.8+**
-- 基本依赖：pip install -r requirements.txt （主要是 equests 和 markdown 库）
+- 基本依赖：pip install -r requirements.txt （主要是 
+equests 和 markdown 库）
 - 兼容最新智能 IDE。
 
 ### 使用步骤
