@@ -18,8 +18,8 @@ __pycache__/
 .venv/
 venv/
 
-# 配置敏感信息（Cookie 等）
-config/settings.json
+# 注意: config/settings.json 已纳入版本管理
+# Cookie 字段为占位符，用户克隆后需填入自己的 Cookie
 
 # Claude Code
 .claude/

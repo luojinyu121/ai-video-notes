@@ -24,13 +24,12 @@ Generates structured, styled video notes from Bilibili video URLs with AI-powere
 Skill Directory = ai-video-notes/
 ├── SKILL.md              # This file
 ├── config/
-│   └── settings.json     # Style definitions & config
+│   └── settings.json     # Style definitions & config (fill in your B站 cookie)
 ├── scripts/
-│   ├── 01_extract_transcript.py
-│   ├── 02_generate_note.py
-│   └── 03_generate_html.py
+│   ├── 01_extract_transcript.py   # Subtitle extraction (with audio fallback)
+│   └── 01b_audio_fallback.py     # Audio download + Whisper transcription
 ├── downloaders/
-│   └── bilibili_downloader.py
+│   └── bilibili_downloader.py    # B站 API subtitle downloader
 ├── output/               # Transcript output
 └── note_results/         # Generated notes output
 ```
