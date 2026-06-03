@@ -131,35 +131,17 @@ Read all segments and analyze the content. If file is too large, use multiple Re
 
 **⚠️ DO NOT just copy-paste subtitles! Use your AI ability to:**
 
-1. **Analyze the full transcript content**
-2. **Identify core concepts, key points, and important details**
-3. **Structure the notes according to selected style and format**
-4. **Generate meaningful summaries, not just raw transcript**
+1. **Read** `config/settings.json` → `note_styles.{selected_style}` to get the exact `structure`, `content_rules`, and `quality_checks`
+2. **Follow the structure exactly** — generate ONLY the sections listed for that style, in the order listed
+3. **Follow the content_rules exactly** — each section must contain what the rules specify
+4. **Apply the quality_checks** (especially for tutorial style which has mandatory checks)
 
-**Quality standards (refer to this SPEC for every generation):**
-
-- Each chapter MUST have 4-6 sub-sections with `####` or `###` headings
-- Every key point MUST have a `⏱️ HH:MM:SS` timestamp (or `[MM:SS]` in Markdown)
-- Every chapter MUST use rich tables for comparisons, options, or steps
-- Include real command examples in ` ``` ` code blocks (not just descriptions)
-- Include at least 3 `> 💡` callout quotes from the video
-- Command reference table at the end, grouped by category
-- Learning path section (入门→基础→进阶→高级→精通)
-- Best practices: ✅ 推荐做法 vs ❌ 避免做法
-
-**Timestamp linking convention:**
+**Timestamp linking convention (ALL styles):**
 
 All timestamps MUST link to the video with seconds calculated from HH:MM:SS:
 - Markdown: `[00:11:12](https://www.bilibili.com/video/{video_id}?t=672)`
 - HTML: `<a href="https://www.bilibili.com/video/{video_id}?t=672" target="_blank" class="timestamp">⏱️ 00:11:12</a>`
 - Calculation: seconds = HH×3600 + MM×60 + SS
-
-**Apply style requirements from config/settings.json:**
-- **detailed**: Comprehensive coverage, all details documented
-- **tutorial**: Step-by-step guide, key points highlighted
-- **academic**: Formal structure, citations
-- **minimal**: Only essential points
-- etc.
 
 ### Step 7: Save Markdown File (ONLY if MD or Both selected)
 
