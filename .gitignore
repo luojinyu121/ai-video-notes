@@ -1,0 +1,29 @@
+# 输出文件（笔记、字幕缓存、日志）
+output/
+note_results/
+logs/
+
+# 音频缓存（可能很大）
+*.m4a
+*.mp3
+*.wav
+*.mp4
+
+# Cookie 临时文件
+.cookies_*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 配置敏感信息（Cookie 等）
+config/settings.json
+
+# Claude Code
+.claude/
+
+# IDE
+.vscode/
+.idea/
