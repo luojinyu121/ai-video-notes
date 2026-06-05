@@ -36,6 +36,15 @@ Skill Directory = ai-video-notes/
 
 ## Workflow
 
+## 模式检测
+
+收到 B站 URL 后，先判断模式：
+
+| 用户意图 | 模式 | 说明 |
+|----------|------|------|
+| 单个视频（URL 无 `?p=` 或只指定单集） | **单集模式** → `## Workflow` | 主 Agent 全程处理 |
+| 合集/多集（用户说"批量""第1,3,5集"或提供 videopod URL） | **批量模式** → `## Batch Mode Workflow` | 子 Agent 并行 |
+
 ### Step 1: Extract Video URL
 Parse video ID and page number from URL.
 - e.g., `https://www.bilibili.com/video/BV1xxx/?p=8` → video_id = `BV1xxx`, page = `8`
@@ -85,6 +94,16 @@ Use AskUserQuestion tool with multiSelect: true. Split style options across max 
 
 ### Step 4: Extract FULL Transcript
 
+**⚠️ Cookie 有效性检查（先验证再提取）**：
+
+Before extraction, verify the cookie is valid:
+```bash
+curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface/view?bvid={video_id}"
+```
+- `code != 0` → Cookie 无效，**STOP**，提示用户提供新 Cookie
+- `code == 0` 且 `subtitle.list == []` 且 `pages` 有数据 → Cookie 有效但无字幕
+- 如果连续两个不同视频都返回空字幕 → 大概率 Cookie 过期，主动提示用户更换
+
 Execute in skill directory with the FULL video URL (including `?p=N` for multi-episode):
 ```bash
 python ./scripts/01_extract_transcript.py "{video_url}"
@@ -109,17 +128,22 @@ python ./scripts/01_extract_transcript.py "https://www.bilibili.com/video/BV1xxx
 
 #### 🔄 Audio Fallback（字幕不可用时的降级方案）
 
-If the video has NO subtitles（B站 API 返回空字幕列表），the script automatically:
-1. Downloads audio via `yt-dlp` to `./output/{video_id}_audio.m4a`
-2. Transcribes using `faster-whisper` (local, free, small model)
-3. Outputs the same standard `_transcript_full.json` format
+**⚠️ CRITICAL: NEVER auto-trigger audio fallback. MUST ask user first.**
 
-Prerequisites for audio fallback:
-- `pip install faster-whisper` (~500MB model on first run)
-- `ffmpeg` installed and on PATH (for audio decoding)
-- `yt-dlp` installed and on PATH
+If the video has NO subtitles（B站 API 返回 `subtitles: []`）：
+1. **DO NOT immediately download audio or use Whisper**
+2. **ASK the user** with AskUserQuestion:
+   - "该视频未找到字幕。可能原因：Cookie 已过期（最常见）/ 该视频确实未生成AI字幕"
+   - 选项 A: 提供新的 Cookie 重试
+   - 选项 B: 使用音频降级方案（下载音频 + Whisper 转录，耗时较长，需 ffmpeg + faster-whisper）
+3. **只有用户明确选择 B 后**才执行音频降级
 
-The transcription source is marked as `"source": "whisper_transcription"` in the output JSON.
+If user chooses B, run:
+```bash
+python ./scripts/01b_audio_fallback.py "{video_url}"
+```
+
+Prerequisites: `pip install faster-whisper`, `ffmpeg`, `yt-dlp`. Output JSON is marked `"source": "whisper_transcription"`.
 
 ### Step 5: Read ALL Subtitle Segments
 
@@ -388,6 +412,67 @@ print('Timestamps linked!')
 - 输出：Markdown / HTML / Both
 - Markdown: ./note_results/{id}_note_full.md
 - HTML: ./note_results/{id}_note_full.html
+```
+
+---
+
+## Batch Mode Workflow（批量多集处理）
+
+### Step B1: 拉取分集列表
+
+1. 调用 B站 API 获取所有分集：
+```bash
+curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface/view?bvid={BV号}"
+```
+2. 解析 `data.pages`，展示列表（含集数、标题、时长）
+3. 如果 > 20 集，只展示前 5 集 + "...共 N 集"
+
+### Step B2: 询问偏好（一次性）
+
+用 AskUserQuestion 收集：
+- Q1: 要处理哪几集？（如 1,3,5-8）
+- Q2-Q4: 风格/格式/输出（与 Step 2 完全一致）
+
+### Step B3: 并行提取字幕（CRITICAL）
+
+**主 Agent 不参与提取！全部交给 Haiku 子 Agent 并行执行。**
+
+为每一集同时启动一个子 Agent：
+```
+Agent N (model: haiku, run_in_background: true):
+  提取 BVxxx?p=N 的字幕 → output/BVxxx_transcript_pN.json
+```
+
+每个子 Agent 的任务描述：
+1. 用 curl + Cookie 调用 view API 获取 CID（从 `pages[N-1]`）
+2. 用 curl + Cookie 调用 player API 获取字幕 URL
+3. 下载字幕 JSON → 处理为标准格式 → 保存
+
+**⚠️ 与 Step 4 相同：Cookie 检查 + 无字幕时必须先问用户。**
+
+等待全部子 Agent 完成后进入 B4。
+
+### Step B4: 并行生成笔记（CRITICAL）
+
+**主 Agent 不参与生成！全部交给 Haiku 子 Agent 并行执行。**
+
+为每一集同时启动一个子 Agent：
+```
+Agent N (model: haiku, run_in_background: true):
+  读取 transcript_pN.json → 按 style 生成 HTML → 保存 note_results/BVxxx_pN_note.html
+```
+
+每个子 Agent 执行等同于 Step 5-8 的完整流程（读 JSON → 按 config 风格生成 → 保存 HTML）。
+
+### Step B5: 汇总报告
+
+```
+✅ 批量生成完成！
+
+| 集数 | 标题 | 时长 | 段数 | 输出文件 |
+|------|------|------|------|----------|
+| 1 | ... | ... | ... | BVxxx_p1_note.html |
+| 3 | ... | ... | ... | BVxxx_p3_note.html |
 ```
 
 ## Style Definition Reference
