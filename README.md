@@ -3,8 +3,6 @@
 这是一个专为 AI 编程核心环境设计的自动化 Agent Skill 工作流组合。它能够提取指定视频的完整字幕，然后通过自定义 AI 对内容进行分析与提炼，生成结构化的 Markdown 笔记及可以直接预览的 HTML 页面。
 
 ## 🌟 核心功能
-* **自动 Cookie 配置(v1.2.0新增加)**：scripts/setup_cookie.py — 从浏览器自动读取 B站 SESSDATA（Chrome/Edge/Firefox），无需手动 F12 复制
-* **双 Hook 系统约束(v1.2.0新增加)**：：`PostToolUse(AskUserQuestion)` 强制提醒子 Agent 使用 `model: haiku`；`BeforeToolUse(Write)` 拦截 BV ID 命名，强制 `{NN}_{标题}.html` 格式
 * **全集字幕抓取**：基于 Python 自动化脚本，抓取输入视频的完全脱敏字幕。
 * **🚀 批量多集处理（v1.1.0 新增）**：支持合集/多集视频批量生成 — 多 Haiku 子 Agent 并行提取字幕 + 并行生成笔记，每集独立 HTML 输出。
 * **🎨 8 种笔记风格独立定义（v1.1.0 新增）**：每种风格拥有独立的 structure + content_rules，相同风格输出结构一致，不同风格输出完全不同。
@@ -52,7 +50,7 @@ bash install.sh
 安装脚本会自动完成：
 1. **Skill** → 复制 `SKILL.md` + 脚本到 `.claude/skills/ai-video-notes/`
 2. **Hook** → 注入 2 个钩子：模型提醒 + 文件命名检查
-3. **配置** → 交互式获取 B站 Cookie（自动从浏览器读取 / 手动输入）
+3. **配置** → 编辑 `config/settings.json` 填入 B站 Cookie
 
 ### 🔧 Hook 说明
 
@@ -70,7 +68,7 @@ Hook 配置独立存储在 `.claude/hook-config.json`，可单独合并到现有
 
 1. 复制 `SKILL.md` + `config/` + `scripts/` + `downloaders/` 到 `.github/skills/ai-video-notes/`
 2. 将 `.claude/hook-config.json` 内容合并到你的 `.claude/settings.json` 的 `hooks.PostToolUse` 数组
-3. 配置 B站 Cookie：`python scripts/setup_cookie.py`（自动从浏览器读取，支持 Chrome/Edge/Firefox）或手动编辑 `config/settings.json`
+3. 编辑 `config/settings.json`，填入 B站 Cookie（F12 → Application → Cookies → bilibili.com → SESSDATA）
 4. 输入 `/skill ai-video-notes` + 视频 URL 即可开始
 
 > ⚠️ **安全提示**：`config/settings.json` 仓库中的 Cookie 字段为占位符。克隆后请填入自己的 B站 Cookie，**不要将真实 Cookie 推送到 GitHub**。
@@ -79,7 +77,7 @@ Hook 配置独立存储在 `.claude/hook-config.json`，可单独合并到现有
 
 ### v1.2.0 (2026-06-26) — 从 Skill 升级为插件
 - 🔗 **双 Hook 系统**：`PostToolUse(AskUserQuestion)` 强制提醒子 Agent 使用 `model: haiku`；`BeforeToolUse(Write)` 拦截 BV ID 命名，强制 `{NN}_{标题}.html` 格式
-- 🍪 **自动 Cookie 配置**：`scripts/setup_cookie.py` — 从浏览器自动读取 B站 SESSDATA（Chrome/Edge/Firefox），无需手动 F12 复制
+- 🍪 **Cookie 提取说明**：新版浏览器使用 App-Bound Encryption，自动提取不可行。需手动从 DevTools 复制 SESSDATA（F12 → Application → Cookies → bilibili.com）
 - 📝 **文件命名规范**：批量模式 `{NN}_{视频标题}.html`，按集数排序；单集模式 `{视频标题}.html`
 - ⛔ **子 Agent 模型管控**：CRITICAL RULE #9 强制批量子 Agent 必须 `model: haiku`；B2 末尾新增启动前自查表；B3/B4 独立调用签名，禁止用 `subagent_type` 替代
 - 🔧 **B站 wbi 签名**：`downloaders/bilibili_downloader.py` 实现 `_fetch_wbi_keys()` + `_wbi_sign()`，从 nav API 获取密钥，修复 `fnval=128` AI 字幕获取
