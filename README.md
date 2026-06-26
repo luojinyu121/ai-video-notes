@@ -3,6 +3,8 @@
 这是一个专为 AI 编程核心环境设计的自动化 Agent Skill 工作流组合。它能够提取指定视频的完整字幕，然后通过自定义 AI 对内容进行分析与提炼，生成结构化的 Markdown 笔记及可以直接预览的 HTML 页面。
 
 ## 🌟 核心功能
+* **自动 Cookie 配置(v1.2.0新增加)**：scripts/setup_cookie.py — 从浏览器自动读取 B站 SESSDATA（Chrome/Edge/Firefox），无需手动 F12 复制
+* ** **双 Hook 系统约束(v1.2.0新增加)**：：`PostToolUse(AskUserQuestion)` 强制提醒子 Agent 使用 `model: haiku`；`BeforeToolUse(Write)` 拦截 BV ID 命名，强制 `{NN}_{标题}.html` 格式
 * **全集字幕抓取**：基于 Python 自动化脚本，抓取输入视频的完全脱敏字幕。
 * **🚀 批量多集处理（v1.1.0 新增）**：支持合集/多集视频批量生成 — 多 Haiku 子 Agent 并行提取字幕 + 并行生成笔记，每集独立 HTML 输出。
 * **🎨 8 种笔记风格独立定义（v1.1.0 新增）**：每种风格拥有独立的 structure + content_rules，相同风格输出结构一致，不同风格输出完全不同。
