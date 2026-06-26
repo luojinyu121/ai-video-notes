@@ -33,10 +33,43 @@
   - `ffmpeg`（可选，av 库自带解码器，Windows 上通常不需要）
   - `yt-dlp`（音频下载，独立安装）
 
-### 使用步骤
-1. 将本项目复制或克隆到您的 `.github/skills/ai-video-notes/` 目录。
-2. 将 `config/settings.json.template` 复制为 `config/settings.json`，并填入您个人的 B 站 Cookie。
-3. 重新加载 AI，在聊天输入 `/skill ai-video-notes` + 视频 URL 即可开始。
+### 🚀 一键安装（推荐）
+
+```bash
+# 克隆插件仓库
+git clone https://github.com/YOUR_USER/ai-video-notes.git
+cd ai-video-notes
+
+# 全局安装（所有项目可用）
+bash install.sh --global
+
+# 或项目级安装（仅当前项目）
+bash install.sh
+```
+
+安装脚本会自动完成：
+1. **Skill** → 复制 `SKILL.md` + 脚本到 `.claude/skills/ai-video-notes/`
+2. **Hook** → 注入 2 个钩子：模型提醒 + 文件命名检查
+3. **配置** → 交互式获取 B站 Cookie（自动从浏览器读取 / 手动输入）
+
+### 🔧 Hook 说明
+
+插件包含一个 Claude Code Hook，在用户完成偏好选择后自动触发：
+
+```
+触发时机: AskUserQuestion 工具调用完成后
+注入内容: ⛔ 强制提醒使用 Agent(model: "haiku", ...) 签名
+防止问题: 主 Agent 遗忘 haiku 模型指定导致 token 大量浪费
+```
+
+Hook 配置独立存储在 `.claude/hook-config.json`，可单独合并到现有项目。
+
+### 手动安装
+
+1. 复制 `SKILL.md` + `config/` + `scripts/` + `downloaders/` 到 `.github/skills/ai-video-notes/`
+2. 将 `.claude/hook-config.json` 内容合并到你的 `.claude/settings.json` 的 `hooks.PostToolUse` 数组
+3. 配置 B站 Cookie：`python scripts/setup_cookie.py`（自动从浏览器读取，支持 Chrome/Edge/Firefox）或手动编辑 `config/settings.json`
+4. 输入 `/skill ai-video-notes` + 视频 URL 即可开始
 
 > ⚠️ **安全提示**：`config/settings.json` 仓库中的 Cookie 字段为占位符。克隆后请填入自己的 B站 Cookie，**不要将真实 Cookie 推送到 GitHub**。
 

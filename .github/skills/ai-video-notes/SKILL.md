@@ -17,6 +17,7 @@ Generates structured, styled video notes from Bilibili video URLs with AI-powere
 6. **ALWAYS read style definition first** - Read `./config/settings.json` to get exact style requirements
 7. **⚠️ CRITICAL: Use YOUR OWN AI ability to generate notes** - Do NOT rely on scripts that just copy-paste subtitles. You MUST analyze the content and generate structured notes with AI-powered insights.
 8. **HTML output MUST follow the HTML模板规范** - See Step 8 for exact CSS, structure, and timestamp linking requirements
+9. **⛔ 批量/并行子 Agent 必须使用 Haiku 模型** - 任何用来读字幕/生成笔记的子 Agent 必须指定 `model: haiku`。主 Agent 不得用自身模型启动子 Agent。违反此规则将导致 token 大量浪费。
 
 ## 📁 File Paths (Relative to Skill Directory)
 
@@ -169,7 +170,7 @@ All timestamps MUST link to the video with seconds calculated from HH:MM:SS:
 
 ### Step 7: Save Markdown File (ONLY if MD or Both selected)
 
-Save generated notes to: `./note_results/{video_id}_note_full.md`
+Save generated notes to: `./note_results/{视频标题}.md`（批量模式：`{NN}_{视频标题}.md`）
 
 **Markdown quality checklist**:
 - [ ] Clickable TOC with `[HH:MM:SS](bilibili-url?t=seconds)` links
@@ -184,6 +185,11 @@ Save generated notes to: `./note_results/{video_id}_note_full.md`
 **You MUST follow the HTML模板规范 below EXACTLY. This is non-negotiable.**
 
 Save to: `./note_results/{video_id}_note_full.html`
+
+**⚠️ 文件命名规范（强制执行）**：
+- **单集模式**：`{视频标题}.html`（如 `教你写一个比SimpleFOC更好的电机库.html`），标题中的特殊字符需去除（`/ \ : * ? " < > |`）
+- **批量模式**：`{NN}_{视频标题}.html`，`NN` 为两位数集号（如 `01_教你写一个比SimpleFOC更好的电机库.html`），确保文件按集数排序
+- Markdown 同理：`{视频标题}.md` / `{NN}_{视频标题}.md`
 
 #### 8.1 CSS 模板（必须使用）
 
@@ -410,8 +416,8 @@ print('Timestamps linked!')
 - 风格：X + Y (已应用风格定义)
 - 格式：toc+link+summary
 - 输出：Markdown / HTML / Both
-- Markdown: ./note_results/{id}_note_full.md
-- HTML: ./note_results/{id}_note_full.html
+- HTML: ./note_results/{NN}_{视频标题}.html
+- Markdown: ./note_results/{NN}_{视频标题}.md
 ```
 
 ---
@@ -433,17 +439,29 @@ curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface
 - Q1: 要处理哪几集？（如 1,3,5-8）
 - Q2-Q4: 风格/格式/输出（与 Step 2 完全一致）
 
+#### ⛔ 启动子 Agent 前自查（B2 结束后强制执行）
+
+在进入 B3 或 B4 之前，主 Agent 必须逐项确认：
+
+| # | 检查项 | 验证方法 |
+|---|--------|----------|
+| 1 | 子 Agent 调用是否包含 `model: haiku`？ | 搜索调用中的 `model` 字段 |
+| 2 | 是否设置了 `run_in_background: true`？ | 批量并行必须异步 |
+| 3 | 子 Agent 数量是否合理？ | 分批启动，每批 ≤ 7 个 |
+
+**若任一项不满足 → STOP，修正后重新启动。**
+
 ### Step B3: 并行提取字幕（CRITICAL）
 
-**主 Agent 不参与提取！全部交给 Haiku 子 Agent 并行执行。**
+**⛔ 主 Agent 不参与提取！子 Agent 必须用 Haiku 模型！**
 
-为每一集同时启动一个子 Agent：
+子 Agent 调用签名（复制使用，禁止修改 model）：
+
 ```
-Agent N (model: haiku, run_in_background: true):
-  提取 BVxxx?p=N 的字幕 → output/BVxxx_transcript_pN.json
+Agent(model: haiku, run_in_background: true, description: "提取字幕 {BV} p{N}")
 ```
 
-每个子 Agent 的任务描述：
+为每一集同时启动一个子 Agent，任务描述：
 1. 用 curl + Cookie 调用 view API 获取 CID（从 `pages[N-1]`）
 2. 用 curl + Cookie 调用 player API 获取字幕 URL
 3. 下载字幕 JSON → 处理为标准格式 → 保存
@@ -454,15 +472,19 @@ Agent N (model: haiku, run_in_background: true):
 
 ### Step B4: 并行生成笔记（CRITICAL）
 
-**主 Agent 不参与生成！全部交给 Haiku 子 Agent 并行执行。**
+**⛔ 主 Agent 不参与生成！子 Agent 必须用 Haiku 模型！**
 
-为每一集同时启动一个子 Agent：
+子 Agent 调用签名（复制使用，禁止修改 model）：
+
 ```
-Agent N (model: haiku, run_in_background: true):
-  读取 transcript_pN.json → 按 style 生成 HTML → 保存 note_results/BVxxx_pN_note.html
+Agent(model: haiku, run_in_background: true, description: "HTML笔记 {BV} ep{N}")
 ```
 
 每个子 Agent 执行等同于 Step 5-8 的完整流程（读 JSON → 按 config 风格生成 → 保存 HTML）。
+
+**⚠️ 批量模式文件命名**：必须使用 `{NN}_{视频标题}.html` 格式，`NN` = 两位数集号（如 `01_教你写一个比SimpleFOC更好的电机库.html`），标题中的特殊字符需去除（`/ \ : * ? " < > |`）。直接使用 B站 API 返回的 `pages[].part` 或 `episodes[].title` 作为标题。
+
+**⛔ 禁止使用 `subagent_type` 参数替代 `model`。禁止省略 `model: haiku`。**
 
 ### Step B5: 汇总报告
 
@@ -471,9 +493,11 @@ Agent N (model: haiku, run_in_background: true):
 
 | 集数 | 标题 | 时长 | 段数 | 输出文件 |
 |------|------|------|------|----------|
-| 1 | ... | ... | ... | BVxxx_p1_note.html |
-| 3 | ... | ... | ... | BVxxx_p3_note.html |
+| 01 | ... | ... | ... | 01_BVxxx_note_full.html |
+| 02 | ... | ... | ... | 02_BVyyy_note_full.html |
 ```
+
+**⚠️ 文件名格式：`{NN}_{视频标题}.html`，确保在文件系统中按集数排列。**
 
 ## Style Definition Reference
 

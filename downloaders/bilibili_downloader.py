@@ -6,6 +6,9 @@ Standalone module - 不依赖 BiliNote backend
 """
 
 import re
+import time
+import hashlib
+import urllib.parse
 import requests
 
 class SubtitleSegment:
@@ -29,6 +32,59 @@ class BilibiliDownloader:
         }
         if self.cookie:
             self.headers["Cookie"] = f"SESSDATA={self.cookie}"
+        self._wbi_keys = None
+
+    def _fetch_wbi_keys(self):
+        """获取 wbi 签名密钥对（从 nav API 的 wbi_img 图片 URL 中提取）"""
+        if self._wbi_keys:
+            return self._wbi_keys
+        try:
+            resp = requests.get(
+                "https://api.bilibili.com/x/web-interface/nav",
+                headers=self.headers,
+                timeout=10,
+            )
+            data = resp.json()
+            if data.get("code") == 0:
+                wbi_img = data["data"]["wbi_img"]
+                # 从图片 URL 中提取 key（文件名去掉扩展名）
+                img_key = wbi_img["img_url"].split("/")[-1].replace(".png", "")
+                sub_key = wbi_img["sub_url"].split("/")[-1].replace(".png", "")
+                # mix_key = img_key 前16位 + sub_key 前16位 = 32位
+                mix = img_key[:16] + sub_key[:16]
+                keys = {
+                    "img_key": img_key,
+                    "sub_key": sub_key,
+                    "mix_key": mix,
+                }
+                self._wbi_keys = keys
+                return keys
+        except Exception as e:
+            print(f"   ⚠️ 获取 wbi 密钥失败: {e}")
+        return None
+
+    def _wbi_sign(self, params):
+        """对请求参数进行 wbi 签名，返回带 w_rid 和 wts 的新参数字典"""
+        keys = self._fetch_wbi_keys()
+        if not keys:
+            return params
+
+        # 添加 wts 时间戳
+        signed = dict(params)
+        signed["wts"] = int(time.time())
+
+        # 按 key 字母顺序排序
+        sorted_keys = sorted(signed.keys())
+        # 拼接参数字符串
+        query_string = "&".join(
+            f"{k}={signed[k]}" for k in sorted_keys
+        )
+        # 追加 mix_key 后取 MD5
+        sign_str = query_string + keys["mix_key"]
+        w_rid = hashlib.md5(sign_str.encode("utf-8")).hexdigest()
+
+        signed["w_rid"] = w_rid
+        return signed
 
     def download_subtitles(self, video_url):
         """下载字幕"""
@@ -144,12 +200,16 @@ class BilibiliDownloader:
             return None
 
     def list_subtitles(self, bvid, cid):
-        """获取字幕列表"""
-        url = f"https://api.bilibili.com/x/player/wbi/v2?bvid={bvid}&cid={cid}"
+        """获取字幕列表（使用 wbi 签名）"""
+        params = {"bvid": bvid, "cid": cid}
+        signed = self._wbi_sign(params)
+
+        url = f"https://api.bilibili.com/x/player/wbi/v2?{urllib.parse.urlencode(signed)}"
         try:
             resp = requests.get(url, headers=self.headers, timeout=10)
             data = resp.json()
             if data.get("code") != 0:
+                print(f"   ⚠️ player API 返回 code={data.get('code')}: {data.get('message', '')}")
                 return []
             subtitles = data.get("data", {}).get("subtitle", {}).get("subtitles", [])
             return subtitles or []

@@ -1,0 +1,25 @@
+{
+  "PostToolUse": [
+    {
+      "matcher": "AskUserQuestion",
+      "hooks": [
+        {
+          "type": "systemMessage",
+          "systemMessage": "⛔⛔⛔ [ai-video-notes Hook 1/2] ⛔⛔⛔\n\n批量模式 Step B2 已完成（用户偏好已收集）。接下来必须启动子 Agent 并行处理。\n\n⚠️ 子 Agent 强制签名（复制使用，禁止修改）：\n\n    Agent(model: \"haiku\", run_in_background: true, description: \"...\")\n\n❌ 禁止省略 model 参数\n❌ 禁止用 subagent_type 替代 model\n❌ 禁止主 Agent 自行读字幕/生成笔记\n✅ 每批 ≤ 7 个，分批启动"
+        }
+      ]
+    }
+  ],
+  "BeforeToolUse": [
+    {
+      "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/check-naming.py\"",
+          "timeout": 5000
+        }
+      ]
+    }
+  ]
+}

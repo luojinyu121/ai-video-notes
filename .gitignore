@@ -21,8 +21,12 @@ venv/
 # 注意: config/settings.json 已纳入版本管理
 # Cookie 字段为占位符，用户克隆后需填入自己的 Cookie
 
-# Claude Code
-.claude/
+# Claude Code（插件 hook 配置文件除外）
+.claude/*
+!.claude/settings.json
+!.claude/hook-config.json
+!.claude/hooks/
+!.claude/hooks/check-naming.py
 
 # IDE
 .vscode/
