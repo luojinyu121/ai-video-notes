@@ -75,6 +75,15 @@ Hook 配置独立存储在 `.claude/hook-config.json`，可单独合并到现有
 
 ## 📋 版本历史
 
+### v1.2.0 (2026-06-26) — 从 Skill 升级为插件
+- 🔗 **双 Hook 系统**：`PostToolUse(AskUserQuestion)` 强制提醒子 Agent 使用 `model: haiku`；`BeforeToolUse(Write)` 拦截 BV ID 命名，强制 `{NN}_{标题}.html` 格式
+- 🍪 **自动 Cookie 配置**：`scripts/setup_cookie.py` — 从浏览器自动读取 B站 SESSDATA（Chrome/Edge/Firefox），无需手动 F12 复制
+- 📝 **文件命名规范**：批量模式 `{NN}_{视频标题}.html`，按集数排序；单集模式 `{视频标题}.html`
+- ⛔ **子 Agent 模型管控**：CRITICAL RULE #9 强制批量子 Agent 必须 `model: haiku`；B2 末尾新增启动前自查表；B3/B4 独立调用签名，禁止用 `subagent_type` 替代
+- 🔧 **B站 wbi 签名**：`downloaders/bilibili_downloader.py` 实现 `_fetch_wbi_keys()` + `_wbi_sign()`，从 nav API 获取密钥，修复 `fnval=128` AI 字幕获取
+- 📦 **一键安装**：`install.sh --global` 全局部署 Skill + Hook 到 `~/.claude/`
+- 🐛 **修复**：yt-dlp HTTP 412 错误（改用 B站 playurl API 直接下载音频）；修复合集（ugc_season）多 BV 分集识别
+
 ### v1.1.0 (2026-06-05)
 - 🚀 **批量多集处理**：合集/多集视频一键批量生成，Haiku 子 Agent 并行提取+并行生成
 - 🎨 **风格独立定义**：8 种风格各有独立 structure + content_rules，不再一套规则套所有
