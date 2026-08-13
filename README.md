@@ -3,6 +3,7 @@
 这是一个专为 AI 编程核心环境设计的自动化 Agent Skill 工作流组合。它能够提取指定视频的完整字幕，然后通过自定义 AI 对内容进行分析与提炼，生成结构化的 Markdown 笔记及可以直接预览的 HTML 页面。
 
 ## 🌟 核心功能
+* **🖼️ 图文笔记（v1.3.0 新增）**：HTML 笔记每个章节自动嵌入视频关键画面截图（base64 内嵌，不额外存储图片）。AI 按画面场景划分字幕，每场景 1 张截图，图片插在对应内容处、原文不删改。
 * **全集字幕抓取**：基于 Python 自动化脚本，抓取输入视频的完全脱敏字幕。
 * **🚀 批量多集处理（v1.1.0 新增）**：支持合集/多集视频批量生成 — 多 Haiku 子 Agent 并行提取字幕 + 并行生成笔记，每集独立 HTML 输出。
 * **🎨 8 种笔记风格独立定义（v1.1.0 新增）**：每种风格拥有独立的 structure + content_rules，相同风格输出结构一致，不同风格输出完全不同。
@@ -74,6 +75,13 @@ Hook 配置独立存储在 `.claude/hook-config.json`，可单独合并到现有
 > ⚠️ **安全提示**：`config/settings.json` 仓库中的 Cookie 字段为占位符。克隆后请填入自己的 B站 Cookie，**不要将真实 Cookie 推送到 GitHub**。
 
 ## 📋 版本历史
+
+### v1.3.0 (2026-08-13) — 图文笔记截图嵌入 + 批量音频降级
+- 🖼️ **图文笔记模式**：笔记类型新增「图文笔记 / 文字笔记」选择。图文笔记仅对 HTML 生效，AI 按画面场景划分字幕，每场景 1 张截图，通过 `{{SHOT:秒数}}` 占位符让 `scripts/02_capture_frames.py` 截取视频关键画面（yt-dlp 下载 → 时间点后 1 秒截帧 → base64 内嵌 `<figure class="shot">`），原文文字不删不改
+- 📂 **可配置输出目录**：`config/settings.json` 新增 `output_dir` / `note_output_dir` 字段
+- 🎬 **批量音频降级**：新增 `scripts/batch_audio_extract.py`，批量转录时修复分集文件名冲突
+- 🔧 **字幕提取增强**：`scripts/01_extract_transcript.py` 重写 — 显式输出目录参数、内部 Cookie 校验 + auth_key 刷新 + 覆盖度校验，不再手写 curl
+- 🎨 **HTML 模板新增截图样式**：CSS 模板加入 `.shot` / `.shot img` / `figcaption` 样式；8.4 质量检查清单加入图文笔记校验项
 
 ### v1.2.0 (2026-06-26) — 从 Skill 升级为插件
 - 🔗 **双 Hook 系统**：`PostToolUse(AskUserQuestion)` 强制提醒子 Agent 使用 `model: haiku`；`BeforeToolUse(Write)` 拦截 BV ID 命名，强制 `{NN}_{标题}.html` 格式

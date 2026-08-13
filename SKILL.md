@@ -19,20 +19,25 @@ Generates structured, styled video notes from Bilibili video URLs with AI-powere
 8. **HTML output MUST follow the HTML模板规范** - See Step 8 for exact CSS, structure, and timestamp linking requirements
 9. **⛔ 批量/并行子 Agent 必须使用 Haiku 模型** - 任何用来读字幕/生成笔记的子 Agent 必须指定 `model: haiku`。主 Agent 不得用自身模型启动子 Agent。违反此规则将导致 token 大量浪费。
 
-## 📁 File Paths (Relative to Skill Directory)
+## 📁 File Paths
 
 ```
-Skill Directory = ai-video-notes/
-├── SKILL.md              # This file
+Skill Directory = ai-video-notes/     （克隆后为仓库根目录）
+├── SKILL.md                 # This file（技能定义）
 ├── config/
-│   └── settings.json     # Style definitions & config (fill in your B站 cookie)
+│   └── settings.json        # 风格定义与配置（填入你的 B站 Cookie）
 ├── scripts/
-│   ├── 01_extract_transcript.py   # Subtitle extraction (with audio fallback)
-│   └── 01b_audio_fallback.py     # Audio download + Whisper transcription
+│   ├── 01_extract_transcript.py   # 字幕提取（Cookie 校验 + auth_key 刷新 + 覆盖度校验）
+│   ├── 01b_audio_fallback.py      # 音频降级：下载音频 + Whisper 转录
+│   ├── 02_capture_frames.py       # 图文笔记截图嵌入（解析 {{SHOT:秒数}} → base64 内嵌 HTML）
+│   ├── batch_audio_extract.py     # 批量音频降级转录（修复分集文件名冲突）
+│   └── setup_cookie.py
 ├── downloaders/
-│   └── bilibili_downloader.py    # B站 API subtitle downloader
-├── output/               # Transcript output
-└── note_results/         # Generated notes output
+│   └── bilibili_downloader.py     # B站 API 字幕下载器（curl + wbi 签名）
+├── output/                  # 字幕输出（gitignored）
+└── note_results/            # 笔记输出（gitignored）
+
+⚠️ 运行脚本前请先 `cd` 到 skill 目录；`output/`、`note_results/` 等相对路径均指 Skill Directory 下的子目录。
 ```
 
 ## Workflow
@@ -49,8 +54,10 @@ Skill Directory = ai-video-notes/
 ### Step 1: Extract Video URL
 Parse video ID and page number from URL.
 - e.g., `https://www.bilibili.com/video/BV1xxx/?p=8` → video_id = `BV1xxx`, page = `8`
+- e.g., `https://www.bilibili.com/video/BV1xxx/`（无 `?p=`）→ video_id = `BV1xxx`, page = `""`（空字符串，单集模式）
 - **⚠️ CRITICAL**: Keep the FULL URL with query parameters (especially `?p=`). Do NOT strip to just the BV ID.
 - For multi-episode videos (videopod, 合集), the `?p=N` parameter specifies which episode to process.
+- **`page` 变量必须在后续所有时间戳链接中使用**：合集用 `?p={page}&t={秒数}`，单集用 `?t={秒数}`
 
 ### Step 2: Ask User Preferences (MANDATORY - NEVER SKIP)
 
@@ -85,7 +92,16 @@ Use AskUserQuestion tool with multiSelect: true. Split style options across max 
 | MD | Markdown (.md) | Clean markdown file |
 | Both | Both | Generate both formats |
 
-**⚠️ IMPORTANT**: ONLY generate the format(s) user selected. If user picks HTML only, DO NOT generate MD. If user picks MD only, DO NOT generate HTML.
+**Note Type（笔记类型，Multi-select）**:
+| Option | Type | Description |
+|--------|------|-------------|
+| 图文笔记 | Rich (recommended) | HTML 中每个章节插入视频关键画面截图（base64 内嵌，不额外存储图片） |
+| 文字笔记 | Text | 纯文本笔记（现状），不含截图 |
+
+**⚠️ IMPORTANT**:
+- ONLY generate the format(s) user selected. If user picks HTML only, DO NOT generate MD. If user picks MD only, DO NOT generate HTML.
+- **图文笔记**：仅对 HTML 生效，MD 不含截图。生成 HTML 时必须在每个章节时间戳后插入 `{{SHOT:秒数}}` 占位符，并运行 Step 8.5 嵌入脚本。
+- **文字笔记**：保持现有纯文本流程，不插入占位符、不运行嵌入脚本。
 
 ### Step 3: Read Style Definition Document (MANDATORY)
 
@@ -95,37 +111,35 @@ Use AskUserQuestion tool with multiSelect: true. Split style options across max 
 
 ### Step 4: Extract FULL Transcript
 
-**⚠️ Cookie 有效性检查（先验证再提取）**：
+**⚠️ 直接运行脚本即可，脚本内部已处理 Cookie 校验 + curl 请求 + auth_key 刷新 + 覆盖度校验。**
 
-Before extraction, verify the cookie is valid:
+Execute:
 ```bash
-curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface/view?bvid={video_id}"
-```
-- `code != 0` → Cookie 无效，**STOP**，提示用户提供新 Cookie
-- `code == 0` 且 `subtitle.list == []` 且 `pages` 有数据 → Cookie 有效但无字幕
-- 如果连续两个不同视频都返回空字幕 → 大概率 Cookie 过期，主动提示用户更换
-
-Execute in skill directory with the FULL video URL (including `?p=N` for multi-episode):
-```bash
-python ./scripts/01_extract_transcript.py "{video_url}"
+python "./scripts/01_extract_transcript.py" "{video_url}" "output"
 ```
 
 Example:
 ```bash
-python ./scripts/01_extract_transcript.py "https://www.bilibili.com/video/BV1xxx/?p=8"
+python "./scripts/01_extract_transcript.py" "https://www.bilibili.com/video/BV1xxx/?p=8" "output"
 ```
 
 Single episode:
 ```bash
-python ./scripts/01_extract_transcript.py "https://www.bilibili.com/video/BV1xxx/"
+python "./scripts/01_extract_transcript.py" "https://www.bilibili.com/video/BV1xxx/" "output"
 ```
+
+**⚠️ 必须显式传入输出目录参数（第三个参数），否则会写到 cwd。若脚本不支持该参数，请直接改 config/settings.json 的 `output_dir` 字段。**
+
+**脚本失败时的处理**：
+- `"该视频没有可用字幕"` → Cookie 可能过期。先确认 config/settings.json 里的 `bilibili_cookie` 是**最新**的，更新后重试
+- 连续两个不同视频都返回空字幕 → 大概率 Cookie 过期，主动提示用户更换
 
 **⚠️ VERIFICATION CHECKLIST**:
 - [ ] Total segments > 0
-- [ ] Last segment end time matches video duration
+- [ ] Last segment end time matches video duration（脚本已自动校验 80%~130%，打印 "覆盖到 Xs / 总长 Ys"）
 - [ ] Report to user: "完整字幕：X段，X分钟"
 
-**Output file**: `./output/{video_id}_transcript_full.json`
+**Output file**: `output/{video_id}_p{page}_transcript_full.json`（分P）或 `{video_id}_transcript_full.json`（单集）
 
 #### 🔄 Audio Fallback（字幕不可用时的降级方案）
 
@@ -141,14 +155,14 @@ If the video has NO subtitles（B站 API 返回 `subtitles: []`）：
 
 If user chooses B, run:
 ```bash
-python ./scripts/01b_audio_fallback.py "{video_url}"
+python "{skill_dir}/scripts/01b_audio_fallback.py" "{video_url}"
 ```
 
 Prerequisites: `pip install faster-whisper`, `ffmpeg`, `yt-dlp`. Output JSON is marked `"source": "whisper_transcription"`.
 
 ### Step 5: Read ALL Subtitle Segments
 
-**You MUST read the ENTIRE transcript file**: `./output/{video_id}_transcript_full.json`
+**You MUST read the ENTIRE transcript file**: `output/{video_id}_p{page}_transcript_full.json`（分P）或 `{video_id}_transcript_full.json`（单集）
 
 Read all segments and analyze the content. If file is too large, use multiple Read calls with offset to cover 100%.
 
@@ -156,7 +170,7 @@ Read all segments and analyze the content. If file is too large, use multiple Re
 
 **⚠️ DO NOT just copy-paste subtitles! Use your AI ability to:**
 
-1. **Read** `config/settings.json` → `note_styles.{selected_style}` to get the exact `structure`, `content_rules`, and `quality_checks`
+1. **Read** `./config/settings.json` → `note_styles.{selected_style}` to get the exact `structure`, `content_rules`, and `quality_checks`
 2. **Follow the structure exactly** — generate ONLY the sections listed for that style, in the order listed
 3. **Follow the content_rules exactly** — each section must contain what the rules specify
 4. **Apply the quality_checks** (especially for tutorial style which has mandatory checks)
@@ -164,13 +178,32 @@ Read all segments and analyze the content. If file is too large, use multiple Re
 **Timestamp linking convention (ALL styles):**
 
 All timestamps MUST link to the video with seconds calculated from HH:MM:SS:
-- Markdown: `[00:11:12](https://www.bilibili.com/video/{video_id}?t=672)`
-- HTML: `<a href="https://www.bilibili.com/video/{video_id}?t=672" target="_blank" class="timestamp">⏱️ 00:11:12</a>`
-- Calculation: seconds = HH×3600 + MM×60 + SS
+- Markdown: `[00:11:12](https://www.bilibili.com/video/{video_id}?t=672)`（单集）或 `[00:11:12](https://www.bilibili.com/video/{video_id}?p={page}&t=672)`（合集）
+- HTML: `<a href="https://www.bilibili.com/video/{video_id}?t=672"...`（单集）或 `<a href="https://www.bilibili.com/video/{video_id}?p={page}&t=672"...`（合集）
+- 合集（有 `?p=` 参数）必须使用 `?p={page}&t={秒数}`，跳转到对应集数的对应时间
+- 单集（无 `?p=`）保持 `?t={秒数}`
+
+**Screenshot placeholder convention（图文笔记模式 ONLY）:**
+
+用户选择「图文笔记」时，**文字笔记内容保持不变**，AI 按「画面场景」划分字幕并为每个场景配 1 张截图，通过占位符 `{{SHOT:{秒数}}}` 让脚本把图插回对应位置。
+
+**场景划分算法（AI 判断，结合字幕时间间隔）：**
+1. 从字幕第一句开始，逐句向后扫描
+2. **相邻句主题关联**（仍在讲同一个命令/页面/画面，如还在讲 gzip 而未切到 bzip）→ 归入当前场景
+3. **主题切换**（如从 gzip 切到 bzip、从安装切到配置）→ 开启新场景
+4. **最多 4 句**：同一场景累计 4 句后，即使主题看似未切换，也自动认为已换页面，开启新场景
+5. 场景边界由「主题关联 + 4 句上限」共同决定；每个场景对应笔记中一个内容块
+
+**每场景 1 张截图，取点位置（3/4 处）：**
+- 取该场景**最后一句话**字幕段时间区间 `[start, end]` 的 `start + (end - start) × 3/4`（靠近最后一句、画面对该内容展示最完整处）
+- 例：场景末句字幕 `[90s, 94s]` → 截图点 `90 + 4×0.75 = 93s` → `{{SHOT:93}}`（四舍五入取整）
+
+**插入位置：** 截图插在笔记中该场景对应内容处（命令/链接/配置/说明附近），**原文文字不删不改**
+**适用范围：** 仅图文笔记模式；纯文字笔记不调用截图，保持现状不变
 
 ### Step 7: Save Markdown File (ONLY if MD or Both selected)
 
-Save generated notes to: `./note_results/{视频标题}.md`（批量模式：`{NN}_{视频标题}.md`）
+Save generated notes to: `note_results/{视频标题}.md`（批量模式：`{NN}_{视频标题}.md`）
 
 **Markdown quality checklist**:
 - [ ] Clickable TOC with `[HH:MM:SS](bilibili-url?t=seconds)` links
@@ -184,7 +217,7 @@ Save generated notes to: `./note_results/{视频标题}.md`（批量模式：`{N
 
 **You MUST follow the HTML模板规范 below EXACTLY. This is non-negotiable.**
 
-Save to: `./note_results/{video_id}_note_full.html`
+Save to: `note_results/{视频标题}.html`（批量：`{NN}_{视频标题}.html`）
 
 **⚠️ 文件命名规范（强制执行）**：
 - **单集模式**：`{视频标题}.html`（如 `教你写一个比SimpleFOC更好的电机库.html`），标题中的特殊字符需去除（`/ \ : * ? " < > |`）
@@ -255,6 +288,11 @@ pre code { background: none; color: inherit; padding: 0; }
 .timestamp { color: #e94560; font-size: 0.9em; font-weight: 600; text-decoration: none; }
 .timestamp:hover { text-decoration: underline; color: #533483; }
 
+/* Screenshot (图文笔记) */
+.shot { margin: 20px 0; text-align: center; }
+.shot img { max-width: 100%; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); }
+.shot figcaption { margin-top: 8px; color: #888; font-size: 0.85em; }
+
 /* Footer */
 .footer { background: #2d2d2d; color: #999; text-align: center; padding: 30px; }
 .footer a { color: #e94560; text-decoration: none; }
@@ -307,7 +345,7 @@ pre code { background: none; color: inherit; padding: 0; }
                 <td>01</td>
                 <td>{章节标题}</td>
                 <td>
-                    <a href="https://www.bilibili.com/video/{video_id}?t={秒数}" target="_blank" title="跳转到视频">{HH:MM:SS}</a>
+                    <a href="https://www.bilibili.com/video/{video_id}?p={page}&t={秒数}" target="_blank" title="跳转到视频">{HH:MM:SS}</a>
                     <a href="#{anchor}" style="font-size:0.8em;color:#999" title="页面内定位">↓</a>
                 </td>
             </tr>
@@ -330,7 +368,9 @@ pre code { background: none; color: inherit; padding: 0; }
 <div class="section">
     <span class="anchor" id="{anchor}"></span>
     <h2>{NN} {章节标题}</h2>
-    <p><a href="https://www.bilibili.com/video/{video_id}?t={秒数}" target="_blank" class="timestamp">⏱️ {HH:MM:SS}</a></p>
+    <p><a href="https://www.bilibili.com/video/{video_id}?p={page}&t={秒数}" target="_blank" class="timestamp">⏱️ {HH:MM:SS}</a></p>
+    <!-- 图文笔记模式：识别到关键内容（链接/输入/注意/终端）时，在对应描述处插入占位符 -->
+    {{SHOT:{秒数}}}
     <!-- 章节内容：h3 子节 + 表格 + 代码块 + callout -->
 </div>
 
@@ -368,31 +408,36 @@ pre code { background: none; color: inherit; padding: 0; }
 
 #### 8.3 时间戳链接规范（必须执行）
 
-**ALL timestamps MUST be clickable links to the video. NO plain text timestamps allowed.**
+**All timestamps MUST be clickable links to the video. NO plain text timestamps allowed.**
+**合集（多集视频，有 `?p=N` 参数）必须使用 `?p={page}&t={seconds}`，单集保持 `?t={seconds}`。**
 
-- TOC: `<a href="https://www.bilibili.com/video/{video_id}?t={seconds}" target="_blank">{HH:MM:SS}</a>`
-- 章节内: `<a href="https://www.bilibili.com/video/{video_id}?t={seconds}" target="_blank" class="timestamp">⏱️ {HH:MM:SS}</a>`
+- TOC: `<a href="https://www.bilibili.com/video/{video_id}?p={page}&t={seconds}" target="_blank">{HH:MM:SS}</a>`（合集）
+- 章节内: `<a href="https://www.bilibili.com/video/{video_id}?p={page}&t={seconds}" target="_blank" class="timestamp">⏱️ {HH:MM:SS}</a>`（合集）
+- 单集：`?t={seconds}`（去掉 `?p=`）
 - Calculation: seconds = HH×3600 + MM×60 + SS (e.g., `00:11:12` → `?t=672`)
 
 **After generating HTML, run this post-processing to ensure ALL timestamps are linked:**
 
 ```bash
-cd {skill_directory} && python -c "
+python -c "
 import re
 video_id = '{video_id}'
-filepath = 'note_results/{video_id}_note_full.html'
+page = '{page}'  # 集号，如 '3'；单集为空字符串
+filepath = r'note_results/{NN}_{视频标题}.html'  # 替换为实际文件名
 with open(filepath, 'r', encoding='utf-8') as f:
     content = f.read()
 def link_ts(m):
-    h, m, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
-    total = h * 3600 + m * 60 + s
-    return f'<a href=\"https://www.bilibili.com/video/{video_id}?t={total}\" target=\"_blank\" class=\"timestamp\" title=\"跳转到视频\">⏱️ {m.group(1)}:{m.group(2)}:{m.group(3)}</a>'
+    h, m_min, s = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    total = h * 3600 + m_min * 60 + s
+    page_param = f'?p={page}&' if page else '?'
+    return f'<a href=\"https://www.bilibili.com/video/{video_id}{page_param}t={total}\" target=\"_blank\" class=\"timestamp\" title=\"跳转到视频\">⏱️ {m.group(1)}:{m.group(2)}:{m.group(3)}</a>'
 content = re.sub(r'⏱️ (\d{2}):(\d{2}):(\d{2})', link_ts, content)
 with open(filepath, 'w', encoding='utf-8') as f:
     f.write(content)
 print('Timestamps linked!')
 "
 ```
+**⚠️ 使用 skill 目录下相对路径，不要写到 {cwd}。**
 
 #### 8.4 HTML 质量检查清单
 
@@ -406,6 +451,26 @@ print('Timestamps linked!')
 - [ ] 提示用 `.highlight` / `.warning` / `.success`
 - [ ] `.footer` 深色背景，含完整视频信息
 - [ ] 包含 `@media (max-width: 768px)` 响应式
+- [ ] （图文笔记模式）截图插在原文对应内容处，**原文文字未删改**
+- [ ] （图文笔记模式）占位符秒数=场景末句字幕时间区间 3/4 处（四舍五入）；无 `{{SHOT:` 残留、每张有 `<figure class="shot">`
+
+#### 8.5 嵌入关键画面截图（图文笔记模式）
+
+**仅当用户选择「图文笔记」时执行。文字笔记模式跳过本步。**
+
+1. **AI 生成 HTML 时**：按 Step 6「Screenshot placeholder convention」的场景算法划分字幕（相邻句主题关联归同场景、主题切换开新场景、最多 4 句），每场景取**末句字幕时间区间 3/4 处**为截图点，在该场景对应内容处插入占位符 `{{SHOT:{秒数}}}`（四舍五入取整秒）。例：场景末句 `[90s, 94s]` → `{{SHOT:93}}`。**原文文字不删不改，仅插入图片。**
+2. **运行嵌入脚本**（HTML 生成完毕后）：
+   ```bash
+   python "./scripts/02_capture_frames.py" "{video_url}" "{html_绝对路径}"
+   ```
+   例：
+   ```bash
+   python "./scripts/02_capture_frames.py" "https://www.bilibili.com/video/BV1xxx/?p=3" "note_results/03_视频标题.html"
+   ```
+   脚本自动完成：解析占位符 → yt-dlp 下载视频（h264≤720，复用 cookie）→ 按**时间点后 1 秒**截帧（缩放宽度 960）→ base64 内嵌为 `<figure class="shot">` → 写回 HTML → 清理临时文件。
+3. **校验**：脚本运行后 `{{SHOT:` 占位符应已全部替换；确认每个章节有 `<figure class="shot">`。
+4. **耗时提示**：每集需先下载一次视频（约 1-3 分钟），截图越多耗时略增。向用户说明。
+5. **失败处理**：若脚本报「视频下载失败」（Cookie 过期/网络），提示用户更新 cookie 后重试；个别时间点截帧失败会自动跳过并替换为空。
 
 ### Step 9: Report Completion
 
@@ -415,9 +480,11 @@ print('Timestamps linked!')
 - 处理字幕：X段（完整）
 - 风格：X + Y (已应用风格定义)
 - 格式：toc+link+summary
+- 笔记类型：图文笔记 / 文字笔记
+- 截图：N 张（图文笔记模式）
 - 输出：Markdown / HTML / Both
-- HTML: ./note_results/{NN}_{视频标题}.html
-- Markdown: ./note_results/{NN}_{视频标题}.md
+- HTML: note_results/{NN}_{视频标题}.html
+- Markdown: note_results/{NN}_{视频标题}.md
 ```
 
 ---
@@ -438,6 +505,7 @@ curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface
 用 AskUserQuestion 收集：
 - Q1: 要处理哪几集？（如 1,3,5-8）
 - Q2-Q4: 风格/格式/输出（与 Step 2 完全一致）
+- Q5: 笔记类型：图文笔记 / 文字笔记（与 Step 2 一致；图文笔记每集都会运行 Step 8.5 嵌入脚本，耗时增加）
 
 #### ⛔ 启动子 Agent 前自查（B2 结束后强制执行）
 
@@ -461,10 +529,13 @@ curl -s -H "Cookie: SESSDATA={cookie}" "https://api.bilibili.com/x/web-interface
 Agent(model: haiku, run_in_background: true, description: "提取字幕 {BV} p{N}")
 ```
 
-为每一集同时启动一个子 Agent，任务描述：
-1. 用 curl + Cookie 调用 view API 获取 CID（从 `pages[N-1]`）
-2. 用 curl + Cookie 调用 player API 获取字幕 URL
-3. 下载字幕 JSON → 处理为标准格式 → 保存
+为每一集启动一个子 Agent，任务描述：
+**直接运行提取脚本，不要自己手写 curl 调用 API（会踩 412/过期/错集坑）：**
+```bash
+python "./scripts/01_extract_transcript.py" "https://www.bilibili.com/video/{BV}?p={N}" "output"
+```
+脚本内部已处理：curl 请求、Cookie、wbi 签名、auth_key 刷新、分P 选取、覆盖度校验、自动重试。
+**⚠️ 验证**：确认输出文件 `{BV}_p{N}_transcript_full.json` 存在于 skill 目录 output/，覆盖度达标。
 
 **⚠️ 与 Step 4 相同：Cookie 检查 + 无字幕时必须先问用户。**
 
@@ -482,6 +553,15 @@ Agent(model: haiku, run_in_background: true, description: "HTML笔记 {BV} ep{N}
 
 每个子 Agent 执行等同于 Step 5-8 的完整流程（读 JSON → 按 config 风格生成 → 保存 HTML）。
 
+**⚠️ 图文笔记模式（B4 附加步骤）**：若用户选择「图文笔记」，子 Agent 生成 HTML（含 `{{SHOT:秒数}}` 占位符）后，必须对**每一集**运行 Step 8.5 嵌入脚本：
+```bash
+python "./scripts/02_capture_frames.py" "https://www.bilibili.com/video/{BV}?p={N}" "note_results/{NN}_{视频标题}.html"
+```
+- 每集独立下载一次视频（约 1-3 分钟），各子 Agent 并行执行
+- 校验：脚本无 `{{SHOT:` 残留、每章有 `<figure class="shot">`
+
+**⚠️ 保存路径（子 Agent 强制）**：所有 HTML/MD 必须写入 `note_results/`，字幕 JSON 从 `output/` 读取。禁止写到 {cwd}。
+
 **⚠️ 批量模式文件命名**：必须使用 `{NN}_{视频标题}.html` 格式，`NN` = 两位数集号（如 `01_教你写一个比SimpleFOC更好的电机库.html`），标题中的特殊字符需去除（`/ \ : * ? " < > |`）。直接使用 B站 API 返回的 `pages[].part` 或 `episodes[].title` 作为标题。
 
 **⛔ 禁止使用 `subagent_type` 参数替代 `model`。禁止省略 `model: haiku`。**
@@ -493,15 +573,17 @@ Agent(model: haiku, run_in_background: true, description: "HTML笔记 {BV} ep{N}
 
 | 集数 | 标题 | 时长 | 段数 | 输出文件 |
 |------|------|------|------|----------|
-| 01 | ... | ... | ... | 01_BVxxx_note_full.html |
-| 02 | ... | ... | ... | 02_BVyyy_note_full.html |
+| 01 | ... | ... | ... | 01_Codex安装与使用.html |
+| 02 | ... | ... | ... | 02_Codex前置准备.html |
 ```
 
-**⚠️ 文件名格式：`{NN}_{视频标题}.html`，确保在文件系统中按集数排列。**
+**⚠️ 文件名格式：`{NN}_{视频标题}.html`（位于 `note_results/`），确保在文件系统中按集数排列。**
+
+**⚠️ 图文笔记模式**：报告末尾追加「截图」列或说明每集嵌入截图张数（如 `01_xxx.html（截图 6 张）`）。
 
 ## Style Definition Reference
 
-**Source**: `config/settings.json` → `note_styles`
+**Source**: `./config/settings.json` → `note_styles`
 
 | Style | Key Requirements |
 |-------|-----------------|

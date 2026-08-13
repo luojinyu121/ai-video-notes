@@ -1,8 +1,8 @@
 {
   "bilibili_cookie": "YOUR_COOKIE_HERE",
-
+  "output_dir": "output",
+  "note_output_dir": "note_results",
   "note_styles": {
-
     "detailed": {
       "label": "详细笔记",
       "description": "完整记录每个部分的讨论，尽可能详细",
@@ -23,9 +23,14 @@
         "AI总结回顾": "3-5句话总结核心收获"
       },
       "style": "formal",
-      "keywords": ["配置", "参数", "数据", "详细", "完整"]
+      "keywords": [
+        "配置",
+        "参数",
+        "数据",
+        "详细",
+        "完整"
+      ]
     },
-
     "tutorial": {
       "label": "教程笔记",
       "description": "步骤清晰、关键点突出、适合学习和参考的教程风格",
@@ -59,9 +64,21 @@
         "包含✅推荐做法和❌避免做法"
       ],
       "style": "structured_tutorial",
-      "keywords": ["步骤", "第一步", "关键", "重点", "结论", "技巧", "方法", "注意", "警告", "不要", "推荐", "避免"]
+      "keywords": [
+        "步骤",
+        "第一步",
+        "关键",
+        "重点",
+        "结论",
+        "技巧",
+        "方法",
+        "注意",
+        "警告",
+        "不要",
+        "推荐",
+        "避免"
+      ]
     },
-
     "academic": {
       "label": "学术报告",
       "description": "正式且结构化，适合学术场景",
@@ -84,9 +101,17 @@
         "参考文献": "视频提到的参考资料列表"
       },
       "style": "formal",
-      "keywords": ["定义", "理论", "方法", "研究", "分析", "结论", "假设", "验证"]
+      "keywords": [
+        "定义",
+        "理论",
+        "方法",
+        "研究",
+        "分析",
+        "结论",
+        "假设",
+        "验证"
+      ]
     },
-
     "minimal": {
       "label": "极简提纲",
       "description": "仅保留核心要点，快速参考",
@@ -101,9 +126,14 @@
         "时间戳速查": "5-10个关键时间点，含时间戳链接+简短标签"
       },
       "style": "concise",
-      "keywords": ["核心", "重点", "关键", "最重要", "总之"]
+      "keywords": [
+        "核心",
+        "重点",
+        "关键",
+        "最重要",
+        "总之"
+      ]
     },
-
     "xiaohongshu": {
       "label": "小红书风",
       "description": "使用emoji、爆款关键词、吸引人的写作技巧",
@@ -124,7 +154,19 @@
         "互动引导": "引导点赞、收藏、评论、关注"
       },
       "style": "social_media",
-      "keywords": ["好用到哭", "宝藏", "绝绝子", "YYDS", "小白必看", "划重点", "打工人", "吐血整理", "家人们", "停止摆烂", "都给我冲"],
+      "keywords": [
+        "好用到哭",
+        "宝藏",
+        "绝绝子",
+        "YYDS",
+        "小白必看",
+        "划重点",
+        "打工人",
+        "吐血整理",
+        "家人们",
+        "停止摆烂",
+        "都给我冲"
+      ],
       "writing_tips": [
         "标题使用数字+感叹号+省略号",
         "大量使用emoji（💡🔥✨📌🔧⚠️💬🎉）增加活力",
@@ -134,7 +176,6 @@
         "使用'👇'、'👉'等符号引导阅读"
       ]
     },
-
     "business": {
       "label": "商业报告",
       "description": "正式且精准，适合商业场景",
@@ -158,9 +199,19 @@
         "风险机遇": "SWOT分析视角"
       },
       "style": "formal",
-      "keywords": ["分析", "报告", "结论", "建议", "执行", "市场", "行业", "影响", "价值", "数据"]
+      "keywords": [
+        "分析",
+        "报告",
+        "结论",
+        "建议",
+        "执行",
+        "市场",
+        "行业",
+        "影响",
+        "价值",
+        "数据"
+      ]
     },
-
     "meeting_minutes": {
       "label": "会议纪要",
       "description": "结构化会议记录",
@@ -181,29 +232,47 @@
         "下次会议": "约定下次时间/议题"
       },
       "style": "formal",
-      "keywords": ["议程", "讨论", "决议", "行动", "待办", "跟进", "确认", "决定", "安排"]
+      "keywords": [
+        "议程",
+        "讨论",
+        "决议",
+        "行动",
+        "待办",
+        "跟进",
+        "确认",
+        "决定",
+        "安排"
+      ]
     }
   },
-
   "output_format": {
     "toc+link+summary": {
       "description": "完整格式（推荐）",
-      "includes": ["目录", "时间戳", "AI总结"]
+      "includes": [
+        "目录",
+        "时间戳",
+        "AI总结"
+      ]
     },
     "toc": {
       "description": "仅目录",
-      "includes": ["目录"]
+      "includes": [
+        "目录"
+      ]
     },
     "link": {
       "description": "仅时间戳",
-      "includes": ["时间戳"]
+      "includes": [
+        "时间戳"
+      ]
     },
     "summary": {
       "description": "仅总结",
-      "includes": ["AI总结"]
+      "includes": [
+        "AI总结"
+      ]
     }
   },
-
   "html_template": {
     "css": "详见SKILL.md Step 8.1（红紫渐变、浅色主题、响应式布局）",
     "structure": "header(.header) → TOC(.toc) → 核心概念(.highlight) → 章节(.section) → 速查表 → 注意事项(.warning) → 学习路径 → 最佳实践(.success/.warning) → footer(.footer)",

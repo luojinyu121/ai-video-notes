@@ -1,0 +1,8 @@
+{
+  "name": "ai-video-notes",
+  "description": "AI-powered video notes — extract Bilibili subtitles, generate structured Markdown & HTML notes, batch multi-episode processing",
+  "version": "1.3.0",
+  "author": {
+    "name": "ai-video-notes"
+  }
+}

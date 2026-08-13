@@ -13,6 +13,11 @@ import tempfile
 import shutil
 import time
 
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 
 def load_config():
     """加载配置文件"""
@@ -96,8 +101,6 @@ def _find_ytdlp():
     """查找 yt-dlp 二进制路径"""
     # 常见路径
     candidates = [
-        os.path.expandvars(r"D:\luojingyu\Scripts\yt-dlp.exe"),
-        os.path.expandvars(r"D:\luojingyu\Scripts\yt-dlp"),
         "yt-dlp",
         "yt-dlp.exe",
     ]
